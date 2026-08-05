@@ -3,76 +3,78 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Two little pulsing dots were eating half my GPU — Moose Builds</title>
-<meta name="description" content="Infinite CSS animations pin the compositor at your display's refresh rate forever. Two halves of the rule, and the fix that actually worked.">
+<title>Two pulsing dots were eating half my GPU — Moose Builds</title>
+<meta name="description" content="Infinite CSS animations hold the compositor at your refresh rate forever. Two separate things are going on, and I've not seen them written down together.">
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
+
+<div class="masthead">
+  <div class="inner">
+    <a class="brand" href="../"><span class="pip"></span>Moose Builds</a>
+    <span class="strap">it does not pulse</span>
+  </div>
+</div>
+
 <div class="wrap">
-
-<header class="site">
-  <a class="brand" href="../">Moose Builds</a>
-  <span class="tag">notes from a very long-running side project</span>
-</header>
-
 <article>
 
-<h1>Two little pulsing dots were eating half my GPU</h1>
-<p class="meta">5 August 2026</p>
+<h1>Two pulsing dots were eating half my GPU</h1>
+<p class="dateline">5 AUGUST 2026</p>
 
-<p>Theo has <a href="https://www.youtube.com/watch?v=TKlOCjLMNtw">just posted a video</a> about T3 Code pegging his GPU on an idle page. The culprit was infinite CSS animations on small status icons. I hit the identical bug in June, on my own terminal harness, and it cost me two days.</p>
+<p class="lede">Theo put out <a href="https://www.youtube.com/watch?v=TKlOCjLMNtw">a video yesterday</a> about T3 Code hammering his GPU on a page that wasn't doing anything. Infinite CSS animations on little status icons. I had the same bug in June. It cost me two days.</p>
 
-<p>The comments under that video are full of people who recognised the symptom and nobody explaining the mechanism. One person asked directly and got no answer at all. So here is the mechanism, and the bit I think both of us only got half of.</p>
+<p>What got me writing it up is the comment section. Plenty of people recognised the symptom, nobody explained the mechanism. Someone asked outright and got no reply. So here it is, including the half I don't think either of us worked out on our own.</p>
 
 <h2>What it looked like</h2>
 
-<p>Mine showed up as <code>dwm.exe</code>, the Windows compositor, sitting at 50 to 70 percent of the GPU's 3D engine while nothing moved on screen. Every browser renderer process read 0 percent CPU. Task Manager blamed nobody. His showed up as the browser's own GPU process burning up to half a core on a 5K display, with the tab itself reporting 1 to 4 percent.</p>
+<p>Mine showed up as <code>dwm.exe</code>, the Windows compositor, sat at 50 to 70 percent of the GPU while nothing on screen was moving. Every browser process reading zero. Task Manager pointing at nobody.</p>
 
-<p>Same disease, different thermometer. In both cases the number you'd naturally look at, the one attached to the page doing the damage, reads close to zero.</p>
+<p>His was the browser's own GPU process eating half a core on a 5K display, with the tab itself claiming 1 to 4 percent.</p>
 
-<p>Browser DevTools are no help here, and it's worth understanding why. They're built to catch JavaScript running when it shouldn't, slow loads, and resources that never arrive. Once work has been handed off to the compositor there's almost nothing left in the main thread for them to see. Opening DevTools also changes the thing you're measuring. The useful instrument is outside the browser entirely.</p>
+<p>Either way, the number you'd naturally go and check is the one that tells you nothing.</p>
+
+<p>DevTools won't help you here, and it's worth knowing why before you waste an evening in there like I did. They're built for JavaScript that shouldn't be running, slow loads, resources that don't turn up. Once the work has been handed off to the compositor there's almost nothing left on the main thread for them to see. Having them open changes the measurement too. You want something outside the browser entirely.</p>
 
 <h2>Finding the tab</h2>
 
-<p>Theo's approach was blunt and effective: open a browser he never uses, put exactly one tab in it, and compare. Google's homepage sat at 3 percent, his app at 18 and up. That took him seconds and needed no tooling, and if you're on a machine you don't control it's the right first move.</p>
+<p>Theo's method was blunt and it worked. Open a browser you never use, put one tab in it, compare. Google's homepage at 3 percent, his app at 18 and climbing. Thirty seconds, no tooling, and if you're on a machine you don't control it's the right first move.</p>
 
-<p>Mine was fussier because Windows gave me better instruments. Per-process, per-engine GPU utilisation is a live performance counter, so you can see exactly which process ID is loading which GPU engine:</p>
+<p>Mine was fussier because Windows hands you better instruments. Per-process, per-engine GPU load is just a performance counter:</p>
 
 <pre><code>Get-Counter "\GPU Engine(*)\Utilization Percentage"</code></pre>
 
-<p>That tells you the compositor is the one burning, but not who's making it burn, because the compositor is downstream of everybody. To get causation rather than correlation I suspended each browser renderer process in turn and watched the compositor number. One of them dropped it from 51 percent to 4.7. That was my terminal tab, and the browser's own task manager agreed, naming the same process ID.</p>
+<p>That tells you the compositor is burning. It doesn't tell you who's making it burn, because the compositor sits downstream of everybody. So I suspended each browser renderer in turn and watched the number. One of them took it from 51 percent to 4.7. That was my terminal tab, and the browser's own task manager agreed, naming the same process.</p>
 
-<p>If you want the frame-level view, PresentMon will tell you each window's present mode. Anything in <code>Composed:</code> something is forcing the desktop compositor to recomposite; anything in <code>Hardware: Independent Flip</code> is bypassing it and costs nothing. One caveat that cost me an hour: Chromium funnels every tab's compositing through a single GPU process, so PresentMon can name the browser but never the tab.</p>
+<p>PresentMon gives you the frame-level view if you want it. Anything presenting in <code>Composed:</code> something is forcing the desktop to recomposite, anything in <code>Hardware: Independent Flip</code> bypasses it and costs nothing. One thing that cost me an hour: Chromium pushes every tab's compositing through a single GPU process, so PresentMon can name the browser and never the tab.</p>
 
-<h2>The mechanism, both halves</h2>
+<h2>Two separate things</h2>
 
-<p>This is the part I haven't seen written down together.</p>
+<p>The first is which property you animate. Touch <code>box-shadow</code>, or <code>filter</code>, or anything else that affects painting, and you get a full repaint of that element every frame. <code>transform</code> and <code>opacity</code> don't do that, they're handled on the compositor. Old advice, and it's right.</p>
 
-<p><strong>First half: which property you animate.</strong> Animating <code>box-shadow</code>, or <code>filter</code>, or anything else that affects painting, forces a full repaint of that element every single frame. Animating <code>transform</code> or <code>opacity</code> does not; those are handled on the compositor without touching paint. This is well-travelled advice and it's correct.</p>
+<p>That was my first fix. The attention pulse on my status dots was animating an expanding box-shadow. I moved it to a transform-and-opacity ring on a pseudo-element. Looks identical, costs a fraction. Idle load went from the mid 50s into the teens.</p>
 
-<p>My first fix was exactly this. The offending thing was an attention pulse on some status dots, animating an expanding <code>box-shadow</code>. I moved it to a transform-and-opacity ring drawn on an <code>::after</code> pseudo-element, which looks identical and costs a fraction. Idle compositor load went from the mid 50s into the teens.</p>
+<p>Then it still spiked into the 80s whenever a few dots lit at once, which is the second thing.</p>
 
-<p>And then it still spiked into the 80s whenever a few dots lit up at once. Which is where the second half lives.</p>
+<p>An animation that never ends promotes its element to its own compositor layer and then holds the compositor committing frames at your display's refresh rate. Forever. Whether anything visibly changed or not. The page never gets to go idle. Doesn't matter that opacity is the cheap one.</p>
 
-<p><strong>Second half: infiniteness itself costs.</strong> An animation that never terminates promotes its element to its own compositor layer and then keeps the compositor committing frames at the display's refresh rate, forever, whether or not anything visibly changed. The page can never go idle. It doesn't matter that opacity is the cheap property. Cheap multiplied by never-stopping, multiplied by however many small indicators you have pulsing at once, multiplied by pixel count, is not cheap.</p>
+<p>It scales with your monitor, which is why some people hit this and some never will. Theo was on 5K at 120Hz. I'm on an ultrawide at 240, about 16 million pixels, so mine was doing roughly twice the work per second. On a 1080p 60Hz panel the same code is probably fine forever.</p>
 
-<p>That last multiplier is why this bites some people and not others. Theo was on 5K at 120Hz. I was on an ultrawide at 240Hz, roughly 16 million pixels, so my compositor was doing about twice his work per second. Someone on a 1080p 60Hz panel may never see a problem in the same code.</p>
+<p>Tailwind's <code>animate-pulse</code> is an infinite opacity animation, which is why it turns up in both stories. Nothing wrong with the class. It just has no idea you're about to put fourteen of them on one screen.</p>
 
-<p>Tailwind's <code>animate-pulse</code> is an opacity animation and an infinite one, which is why it turns up in both our stories. It is not a badly written class. It's a perfectly reasonable animation with no idea how many of itself you're about to put on screen.</p>
+<h2>will-change makes it worse</h2>
 
-<h2>will-change makes it worse, not better</h2>
+<p>Counterintuitive, this one. I saw somebody in Theo's comments recommend the opposite in good faith, off real experience.</p>
 
-<p>This one is genuinely counterintuitive and I saw someone recommend the opposite in Theo's comments, in good faith, based on real experience.</p>
+<p><code>will-change: opacity</code> does exactly what it says. Promotes the element to its own layer and keeps it there. If you're fixing a janky one-off transition, that's a genuine fix, because you've paid the layer cost up front instead of in the middle of the animation. If it's a permanent indicator, you've just made the layer permanent as well.</p>
 
-<p><code>will-change: opacity</code> does what it says: it promotes the element to its own compositor layer and keeps it there. If your problem is a janky one-off transition, that's a real fix, because you've paid the layer cost up front instead of mid-animation. If your problem is a permanent indicator, you've just made the layer permanent too.</p>
+<p>I had fourteen status dots, every one with the hint on it. Fourteen pinned layers that were never allowed to go away. Taking it off was worth more than all the animation tuning put together.</p>
 
-<p>I had fourteen status dots on screen, each with <code>will-change: opacity</code>. Fourteen pinned compositor layers, none of which were ever allowed to go away. Removing the hint was a bigger win than any of the animation tuning.</p>
+<p>Rule of thumb. <code>will-change</code> is for transient stuff. Never put it on anything that sits on screen all the time.</p>
 
-<p>The rule I'd write on the wall: <code>will-change</code> is for transient interactions. Never put it on something that's on screen all the time.</p>
+<h2>What fixed it</h2>
 
-<h2>What actually fixed it</h2>
-
-<p>Make the pulse finite.</p>
+<p>Made the pulse finite.</p>
 
 <pre><code>/* before */
 animation: glow-breathe 1.4s steps(12, end) infinite;
@@ -82,46 +84,43 @@ will-change: opacity;
 opacity: 0;
 animation: glow-breathe 1.4s steps(12, end) 3;</code></pre>
 
-<p>Three pulses when the state changes, then it settles to a solid dot. You still get the thing you wanted, which is a flicker of motion that pulls the eye at the moment something happens. What you don't get is a page that never stops rendering. Idle compositor load went under 12 percent and stayed there.</p>
+<p>Three pulses when the state changes, then it settles to a solid dot. You still get the flick of movement that catches your eye at the moment something happens. You don't get a page that never stops rendering. Idle went under 12 percent and stayed there.</p>
 
-<p>For the indicators that are active for a long stretch, like a microphone glow while recording, I made them static entirely. A steady glow communicates "recording" perfectly well, and a continuous animation was costing roughly 70 percent of the compositor for the whole duration of the recording.</p>
+<p>The indicators that stay lit for a long stretch, the microphone glow while it's recording, I just made static. A steady glow says "recording" perfectly well, and animating it was costing about 70 percent of the compositor for the entire length of the recording.</p>
 
-<p>Amusing footnote: a model suggested precisely the finite-pulse fix to Theo, and he called it the worst guidance he'd ever heard. I understand the reflex, because it arrives sounding like a compromise. It isn't. It's the right answer and it looks fine.</p>
+<p>Codex suggested the finite pulse to Theo, more or less word for word, and he called it the worst guidance he'd ever heard. I get the reflex. It arrives sounding like a compromise. It isn't one, and it looks fine.</p>
 
-<h2>One warning about how you test this</h2>
+<h2>Don't trust an isolated test page</h2>
 
-<p>I built an isolated test page to A/B four different animation strategies, measured each one on the real monitor, and picked the cheapest. The lab lied to me.</p>
+<p>I built one. Four animation variants, measured each on the real monitor, picked the cheapest. It lied to me.</p>
 
-<p>A throttled opacity pulse, stepped down to about 12 frames a second, measured beautifully in isolation and then failed completely on the real page. In isolation it was the only thing animating, so the page still dropped out of composited mode between frames. On the real page, surrounded by other permanently animating elements, it never got the chance. The mode switch is a property of the whole page, not of the animation you're testing.</p>
+<p>A throttled opacity pulse at about 12 frames a second measured beautifully on its own, then did nothing at all on the real page. On its own it was the only thing animating, so the page still dropped out of composited mode between frames. On the real page, surrounded by other permanent animations, it never got the chance.</p>
 
-<p>Theo's method was better here, and I'd use it next time. He got an agent to build him a small console harness he could paste into the live production page, letting him toggle whole categories of suspect CSS on and off and watch the number move. Bisect in situ, not in a lab.</p>
+<p>The mode switch belongs to the whole page, not to the one animation you're testing. Theo's approach was better and I'd use it next time. He got an agent to build him a console harness he could paste straight into the live page, flipping whole categories of CSS on and off while he watched the number move.</p>
 
-<h2>Don't stop at the fix</h2>
+<h2>The fix isn't the deliverable</h2>
 
-<p>This is the part I'd push hardest, and it's the reason I'm writing this up rather than just nodding along to the video.</p>
+<p>This is the bit I'd actually argue about.</p>
 
-<p>A fix to a bug like this has a half-life measured in pull requests. Nothing about the codebase stops the next person adding a pulsing icon, because the code that causes it looks completely innocent. Theo says as much on camera about a different app: it would get fixed, and the next update would break it again.</p>
+<p>Nothing in a codebase stops the next person adding a pulsing icon, because the code that does it looks completely innocent. Theo says as much on camera about another app. Fixed, then broken again by the next update, over and over.</p>
 
-<p>So the fix wasn't the deliverable. What I actually shipped was three things:</p>
+<p>So I shipped three things rather than one.</p>
 
-<ul>
-<li>A probe that samples the compositor and ranks every process forcing a recomposite, resolving each one back to the application that owns it.</li>
-<li>A before-and-after gate. Save a baseline, make your change, run it again; it fails if the compositor jumped or if a new composited presenter appeared that wasn't there before. That runs automatically on any change that touches the interface.</li>
-<li>An in-page overlay on a keyboard shortcut that walks <code>document.getAnimations()</code>, flags every running animation, and marks the infinite ones in red as the ones pinning the compositor.</li>
-</ul>
+<ol class="shipped">
+  <li>A probe that samples the compositor and ranks every process forcing a recomposite, tracing each one back to the application that owns it.</li>
+  <li>A before-and-after gate. Save a baseline, make the change, run it again. It fails if the compositor jumped, or if a new composited presenter turned up that wasn't there before. It runs on anything that touches the interface.</li>
+  <li>An overlay on a keyboard shortcut that walks <code>document.getAnimations()</code>, lists what's running, and marks the infinite ones in red.</li>
+</ol>
 
-<p>That last one took about twenty minutes and is the single highest-value thing in the list, because it turns an invisible property of the page into something you can see while you're building. The whole problem with this class of bug is that the code reads fine, the page looks fine, and the cost lands three layers away in a process nobody thinks to look at.</p>
-
-<hr>
-
-<p class="meta">Written by Moose. This page has no JavaScript, no webfonts, no tracking and no animations, which felt like the least I could do.</p>
+<p>That last one took twenty minutes and it's the one I'd build first if I had the two days again. The whole trouble with this bug is that the code reads fine, the page looks fine, and the cost turns up three layers away in a process you'd never think to open.</p>
 
 </article>
 
-<footer class="site">
-  <a href="../">← all posts</a>
-</footer>
-
+<div class="colophon">
+  <span><a href="../">← all posts</a></span>
+  <span>no JavaScript · no webfonts · no tracking · nothing animates</span>
 </div>
+</div>
+
 </body>
 </html>

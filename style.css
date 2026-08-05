@@ -1,139 +1,246 @@
-/* No webfonts, no JS, no tracking, no animations.
-   A page about compositor cost should cost the compositor nothing. */
+/* No webfonts, no JS, no tracking, and nothing on this page animates.
+   The accent colour is the green of the status pip that started all this.
+   It does not pulse. That is the whole point. */
 
 :root {
-  --bg: #fbfaf8;
-  --fg: #1e1c1a;
-  --muted: #6b6560;
-  --rule: #e0dbd4;
-  --link: #8a4b2a;
-  --code-bg: #f2efea;
+  --paper:  #f5f7f6;
+  --ink:    #121714;
+  --muted:  #6c7873;
+  --rule:   #d9e0dc;
+  --pip:    #0d7a45;
+  --panel:  #e8edea;
+  --shade:  #eef2f0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16151a;
-    --fg: #e6e2dc;
-    --muted: #979089;
-    --rule: #2e2c33;
-    --link: #d99a6c;
-    --code-bg: #211f26;
+    --paper: #0d100f;
+    --ink:   #dfe6e2;
+    --muted: #808d87;
+    --rule:  #232b27;
+    --pip:   #5fd39a;
+    --panel: #161d1a;
+    --shade: #121816;
   }
 }
 
-* { box-sizing: border-box; }
+:root[data-theme="dark"] {
+  --paper: #0d100f; --ink: #dfe6e2; --muted: #808d87;
+  --rule: #232b27; --pip: #5fd39a; --panel: #161d1a; --shade: #121816;
+}
+
+:root[data-theme="light"] {
+  --paper: #f5f7f6; --ink: #121714; --muted: #6c7873;
+  --rule: #d9e0dc; --pip: #0d7a45; --panel: #e8edea; --shade: #eef2f0;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  padding: 3rem 1.25rem 6rem;
-  background: var(--bg);
-  color: var(--fg);
-  font: 17px/1.65 ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  padding: 0 1.25rem 6rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 17px/1.72 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-synthesis-weight: none;
 }
 
-.wrap { max-width: 38rem; margin: 0 auto; }
+.wrap { max-width: 34rem; margin: 0 auto; }
 
-header.site {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding-bottom: 1.25rem;
-  margin-bottom: 2.5rem;
+/* ---- masthead: mono, quiet, with the pip ---- */
+
+.masthead {
   border-bottom: 1px solid var(--rule);
+  margin-bottom: 3rem;
 }
 
-header.site a.brand {
-  font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: 0.01em;
-  color: var(--fg);
+.masthead .inner {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 1.15rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font: 600 13px/1 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-header.site .tag {
-  color: var(--muted);
-  font-size: 0.9rem;
+.pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pip);
+  display: inline-block;
+  flex: none;
 }
+
+.masthead .strap {
+  font: 400 12px/1.3 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ---- type ---- */
 
 h1 {
-  font-size: 1.9rem;
-  line-height: 1.2;
-  margin: 0 0 0.4rem;
-  letter-spacing: -0.01em;
+  font: 600 1.75rem/1.22 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.018em;
+  margin: 0 0 0.55rem;
+  text-wrap: balance;
 }
 
 h2 {
-  font-size: 1.2rem;
-  margin: 2.5rem 0 0.6rem;
-  letter-spacing: -0.005em;
-}
-
-.meta {
+  font: 500 13px/1.4 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
-  font-size: 0.9rem;
-  margin: 0 0 2rem;
+  margin: 3.1rem 0 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--rule);
+  text-wrap: balance;
 }
 
-p, li { margin: 0 0 1.1rem; }
+.dateline {
+  font: 400 12px/1 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 2.4rem;
+}
 
-a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+p { margin: 0 0 1.15rem; }
+
+.lede { font-size: 1.06rem; }
+
+strong { font-weight: 600; }
+
+a {
+  color: var(--pip);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
 a:hover { text-decoration-thickness: 2px; }
+a:focus-visible {
+  outline: 2px solid var(--pip);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
 
 code, pre {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.88em;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 code {
-  background: var(--code-bg);
-  padding: 0.12em 0.35em;
-  border-radius: 3px;
+  font-size: 0.86em;
+  background: var(--panel);
+  padding: 0.14em 0.34em;
+  border-radius: 2px;
+  word-break: break-word;
 }
 
 pre {
-  background: var(--code-bg);
-  padding: 0.9rem 1rem;
-  border-radius: 5px;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  background: var(--shade);
+  border-left: 2px solid var(--pip);
+  padding: 0.95rem 1.1rem;
+  margin: 1.5rem 0;
   overflow-x: auto;
-  line-height: 1.5;
 }
 
-pre code { background: none; padding: 0; }
+pre code { background: none; padding: 0; font-size: inherit; }
 
-blockquote {
-  margin: 1.4rem 0;
-  padding: 0 0 0 1.1rem;
-  border-left: 3px solid var(--rule);
-  color: var(--muted);
+/* ---- the three-things list on the post ---- */
+
+ol.shipped {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  counter-reset: shipped;
 }
 
-hr { border: 0; border-top: 1px solid var(--rule); margin: 3rem 0; }
+ol.shipped li {
+  counter-increment: shipped;
+  position: relative;
+  padding-left: 2.2rem;
+  margin: 0 0 1.15rem;
+}
 
-ul.posts { list-style: none; padding: 0; }
+ol.shipped li::before {
+  content: counter(shipped, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.18em;
+  font: 500 11px/1 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+  color: var(--pip);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- index list ---- */
+
+ul.posts { list-style: none; padding: 0; margin: 0; }
 
 ul.posts li {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: 0 1rem;
+  align-items: baseline;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+ul.posts li:first-child { border-top: 1px solid var(--rule); }
+
+ul.posts time {
+  font: 400 12px/1.5 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+ul.posts a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1px;
+}
+ul.posts a:hover { border-bottom-color: var(--pip); color: var(--pip); }
+
+/* ---- colophon ---- */
+
+.colophon {
+  margin-top: 4rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font: 400 12px/1.6 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--muted);
   display: flex;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--rule);
-  margin: 0;
+  flex-wrap: wrap;
 }
 
-ul.posts time { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.colophon a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--rule); }
+.colophon a:hover { color: var(--pip); border-bottom-color: var(--pip); }
 
-footer.site {
-  margin-top: 4rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--rule);
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-@media (max-width: 30rem) {
-  body { padding-top: 2rem; font-size: 16px; }
-  h1 { font-size: 1.55rem; }
-  ul.posts li { flex-direction: column; gap: 0.15rem; }
+@media (max-width: 34rem) {
+  body { font-size: 16px; }
+  h1 { font-size: 1.5rem; }
+  .masthead .strap { margin-left: 0; flex-basis: 100%; }
+  ul.posts li { grid-template-columns: 1fr; gap: 0.2rem 0; }
+  pre { margin-left: -1.25rem; margin-right: -1.25rem; border-left-width: 3px; }
 }
