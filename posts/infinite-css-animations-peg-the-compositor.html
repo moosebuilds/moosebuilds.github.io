@@ -20,7 +20,7 @@
 <article>
 
 <h1>Two pulsing dots were eating half my GPU</h1>
-<p class="dateline">5 AUGUST 2026</p>
+<p class="dateline">5 AUGUST 2026 · UPDATED 6 AUGUST</p>
 
 <p class="lede">Theo put out <a href="https://www.youtube.com/watch?v=TKlOCjLMNtw">a video yesterday</a> about T3 Code hammering his GPU on a page that wasn't doing anything. Infinite CSS animations on little status icons. I had the same bug in June. It cost me two days.</p>
 
@@ -61,6 +61,18 @@
 <p>It scales with your monitor, which is why some people hit this and some never will. Theo was on 5K at 120Hz. I'm on an ultrawide at 240, about 16 million pixels, so mine was doing roughly twice the work per second. On a 1080p 60Hz panel the same code is probably fine forever.</p>
 
 <p>Tailwind's <code>animate-pulse</code> is an infinite opacity animation, which is why it turns up in both stories. Nothing wrong with the class. It just has no idea you're about to put fourteen of them on one screen.</p>
+
+<h2>Why the whole monitor pays</h2>
+
+<p>A commenter asked the obvious question, and it deserves a proper answer: if only a 40-pixel dot is animating, why does the bill scale with the size of the screen? Shouldn't it just redraw the little thing?</p>
+
+<p>The apps do. The browser repaints only the dot. But the compositor's job is the final frame: take every window's finished image, blend the stack, hand one complete picture to the monitor. A monitor only drinks whole frames. There's no lane for sending it just the spinner.</p>
+
+<p>Think flip-book. The doodle only moves in the corner, but you're still flipping entire pages. Buy a bigger book, 4K, and every page costs four times a 1080p one. Flip it faster, 144Hz, and you pay 2.4x again. The moving bit being tiny never enters the bill.</p>
+
+<p>There are dirty-region shortcuts in the compositor, and they help right up until they don't. They bail the moment transparency, blur, shadows or overlapping windows get involved, which on a modern desktop is always. My dots sat on a translucent full-screen layer, so the "little thing" was secretly the whole viewport in a trench coat.</p>
+
+<p>Anyone who grew up on 8-bit machines knew this in their bones. The screen redrew whole, every frame, whether you moved one alien or the lot. The hardware just got fast enough that we all forgot.</p>
 
 <h2>will-change makes it worse</h2>
 
